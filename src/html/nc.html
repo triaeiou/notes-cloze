@@ -1,0 +1,102 @@
+<div id="nc-placeholder">Oops, that's embarrasing, it should not have happened...</div>
+<div id="nc-viewport">
+    <div id="nc-title">{{Deck}}</div>
+    <div id="nc-content">{{cloze:Text}}</div>
+</div>
+
+
+<!-- functional css -->
+<style>
+    /* z-order: text → top-bar → clozes → searches → side-bar → footer  */
+    html, body, #qa, #content { /* body + Anki divs */
+        margin: 0; padding: 0;
+        overflow: hidden;
+        box-sizing: border-box;
+    }
+    #nc-viewport {
+        display: none /* set to flex once loaded */; flex-direction: column;
+        position: absolute;
+        top: 0; left: 0;
+        height: 100%; width: 100%;
+        background-color: var(--nc-bg1);
+        overflow: auto;
+    }
+        #nc-title {
+            position: sticky; top: 0;
+            z-index: 3;
+            padding: 5px 10px;
+            text-transform: uppercase; font-weight: bold;
+            background-color: var(--nc-bg2);
+            box-sizing: border-box;
+        }
+        body:not(.night_mode) #nc-title {border-bottom: solid var(--nc-border) 2px;}
+
+        /* css to hide all clozes except when they or a descendant have .show */
+        #nc-content {
+            flex-grow: 1;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+            .cloze {
+                display: block;
+                pointer-events: auto;
+                z-index: 2;
+                min-width: 100px; min-height: 1em;
+                margin: 3px; padding: 5px;
+                vertical-align: middle;
+                background-color: var(--nc-bg2);
+                border: 1px solid var(--nc-border);
+            }
+            .cloze-active { border: 2px solid var(--nc-border-focus); }
+            .cloze-active.hide:not(:has(.cloze-active:not(.hide))) { display: inline-block; }
+            .cloze-inactive.hide:not(:has(.cloze-active)) { display: inline-block; }
+
+            .cloze-content, .cloze-hint {
+                pointer-events: none;
+                height: 100%; width: 100%;
+            }
+            .cloze-active.hide > .cloze-content:not(:has(.cloze-active:not(.hide))) {display: none;}
+            .cloze-inactive.hide > .cloze-content:not(:has(.cloze-active)) {display: none;}
+            .cloze-active:not(.hide) > .cloze-hint:not(:has(.cloze-active:not(.hide))) {display: none;}
+            .cloze-inactive:not(.hide) > .cloze-hint:not(:has(.cloze-active)) {display: none;}
+
+
+    #nc-search {
+        display: flex; flex-flow: row nowrap;
+        position: sticky; bottom: 0px;
+        z-index: 5;
+        padding: 2px;
+        background-color: var(--nc-bg2);
+        border-top: 1px solid var(--nc-border);
+    }
+        #nc-search .field {
+            flex: 1 1;
+            height: 20px; padding-left: 2px;
+        }
+        #nc-search .button {
+            flex: 0 0;
+            margin-left: 5px; margin-right: 2px; padding: 2px;
+            border: 1px solid var(--nc-border); border-radius: 5px;
+            font-size: 12px; line-height: 20px;
+            background-color: var(--nc-button-bg);
+        }
+        #nc-search .button:active {background-color: var(--nc-button-active);}
+        .nc-search-matches {
+            position: absolute; z-index: 3;
+            vertical-align: top;
+            background-color: var(--nc-search-matches);
+        }
+        .nc-search-match {
+            position: absolute; z-index: 3;
+            vertical-align: top;
+            background-color: var(--nc-search-match);
+        }
+    #nc-log-panel {
+        display: flex; flex: initial; flex-flow: column nowrap;
+        z-index: 5;
+        height: 100px; overflow: auto;
+        margin: 0px;
+        font-size: 10px; word-wrap: break-word; white-space: pre-wrap;
+        background-color: var(--nc-log);
+    }
+</style>
