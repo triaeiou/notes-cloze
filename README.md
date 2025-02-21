@@ -66,6 +66,8 @@ The update logic is dependent on the user keeping these tag intact and updates w
 - Active cloze: Cloze(s) with the current ordinal, i.e. the cloze(s) that should be answered, style by using the `.cloze-active` class.
 - Inactive cloze: Cloze(s) that are not the current ordinal, i.e. the cloze(s) that should not be answered, style by using thge `.cloze-inactive` class.
 
+The behaviour of NC, shortcut keys, log level and the show/hide of inactive clozes on front and back can be set in the template at the top in the config object. The show/hide states of the inactive clozes can also be overridden on individual notes by setting `nc-show-front`/`nc-hide-front` and `nc-show-back`/`nc-hide-back` tags.
+
 ## Recommended companion addons
 
 Some useful companion addons if you, like I, keep one note per subject rather than per question:

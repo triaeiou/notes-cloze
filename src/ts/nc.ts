@@ -43,17 +43,10 @@ export class NotesCloze {
     // setup logging
     this.log = logger(pre, config?.log_level)
 
-    // get shebang directives
-    let hide_front = true
-    let hide_back = false
-    const match = /^#!((?:(?:show-front|hide-back)\s*,?)+)\s*(<br\*\/?>\s*)*/.exec(this.content.innerHTML)
-    if (match) {
-      const shebangs = match[1].split(/\s*,\s*/)//.filter(itm => itm)
-      console.log(`shebangs: ${shebangs.join('-')}`)
-      this.content.innerHTML = this.content.innerHTML.slice(match[0].length)
-      if (shebangs.includes('show-front')) hide_front = false
-      if (shebangs.includes('hide-back')) hide_back = true
-    }
+    // tag and config directives
+    const tags = "{{Tags}}".split(' ').filter(Boolean)
+    const show_front = tags.includes('nc-show-front') || !tags.includes('nc-hide-front') && config.inactive.front
+    const show_back = tags.includes('nc-show-back') || !tags.includes('nc-hide-back') && config.inactive.back
 
     // default title is deck name, replace with note title if exists
     const h1 = this.content.querySelector('h1') as HTMLHeadingElement
@@ -100,7 +93,7 @@ export class NotesCloze {
       // hide inactive on front and show on back unless overridden by shebang
       if (
         (kind === 'cloze' && front) ||
-        (kind === 'cloze-inactive' && (front && hide_front || !front && hide_back))
+        (kind === 'cloze-inactive' && (front && !show_front || !front && !show_back))
       )
         wrap.classList.add('hide')
       // capture first active cloze
@@ -126,7 +119,7 @@ export class NotesCloze {
         let ix = 0
         let offset = title.clientHeight
         for (const [i, el] of Array.from(this.content.querySelectorAll('.cloze-active') as NodeListOf<HTMLSpanElement>).entries()) {
-          console.log(`checking ${i} with center: ${center}, el.offsetTop: ${el.offsetTop}`)
+          //console.log(`checking ${i} with center: ${center}, el.offsetTop: ${el.offsetTop}`)
           const top = el.getBoundingClientRect().top
           if (top >= title.clientHeight) {
             ix = i
@@ -135,7 +128,7 @@ export class NotesCloze {
           }
         }
     
-        console.log(`storing ${ix} with offset ${offset}`)
+        //console.log(`storing ${ix} with offset ${offset}`)
         sessionStorage.setItem('nc_reference_ordinal', ix.toString())
         sessionStorage.setItem('nc_reference_offset', offset.toString())
       }
@@ -156,22 +149,19 @@ export class NotesCloze {
       }
       // render then scroll to previous position
       window.requestAnimationFrame(() => {
-        console.log(`scrolling to ${pos - offset} from position ${pos} and offset ${offset}`)
+        //console.log(`scrolling to ${pos - offset} from position ${pos} and offset ${offset}`)
         this.scroll_to('position', pos - offset)
         // render then scroll into view
         window.requestAnimationFrame(() => {
           const first = actives[0].getBoundingClientRect()
           const last = actives[actives.length - 1].getBoundingClientRect()
           if (first.top >= 0 && last.bottom <= this.viewport.clientHeight) {
-            console.log(`all visible, first.top: ${first.top}, last.bottom: ${last.bottom}, viewport: ${this.viewport.clientHeight}`)
-            return
-          }
-          else if (first.top < 0 || (first.top - last.bottom) > this.viewport.clientHeight){
-            console.log(`scrolling to first: ${first.top}, last: ${last.bottom}, viewport: ${this.viewport.clientHeight}`)
+            //console.log(`all visible, first.top: ${first.top}, last.bottom: ${last.bottom}, viewport: ${this.viewport.clientHeight}`)
+          } else if (first.top < 0 || (first.top - last.bottom) > this.viewport.clientHeight){
+            //console.log(`scrolling to first: ${first.top}, last: ${last.bottom}, viewport: ${this.viewport.clientHeight}`)
             this.scroll_to('min', actives[0])
-          }
-          else {
-            console.log(`scrolling to last: ${first.top}, last: ${last.bottom}, viewport: ${this.viewport.clientHeight}`)
+          } else {
+            //console.log(`scrolling to last: ${first.top}, last: ${last.bottom}, viewport: ${this.viewport.clientHeight}`)
             this.scroll_to('min', actives[actives.length - 1])
           }
         })
