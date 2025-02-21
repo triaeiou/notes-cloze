@@ -43,6 +43,18 @@ export class NotesCloze {
     // setup logging
     this.log = logger(pre, config?.log_level)
 
+    // get shebang directives
+    let hide_front = true
+    let hide_back = false
+    const match = /^#!((?:(?:show-front|hide-back)\s*,?)+)\s*(<br\*\/?>\s*)*/.exec(this.content.innerHTML)
+    if (match) {
+      const shebangs = match[1].split(/\s*,\s*/)//.filter(itm => itm)
+      console.log(`shebangs: ${shebangs.join('-')}`)
+      this.content.innerHTML = this.content.innerHTML.slice(match[0].length)
+      if (shebangs.includes('show-front')) hide_front = false
+      if (shebangs.includes('hide-back')) hide_back = true
+    }
+
     // default title is deck name, replace with note title if exists
     const h1 = this.content.querySelector('h1') as HTMLHeadingElement
     if (h1) {
@@ -76,18 +88,23 @@ export class NotesCloze {
     // wrap cloze content and hint in new span:
     // <span class="cloze cloze-active"><span class="cloze-hint">hint</span><span class="cloze-content">content</span></span>
     for (const cloze of this.content.querySelectorAll('.cloze-inactive, .cloze') as NodeListOf<HTMLSpanElement>) {
-      const type = cloze.classList.contains('cloze') ? 'cloze' : 'cloze-inactive'
+      const kind = cloze.classList.contains('cloze') ? 'cloze' : 'cloze-inactive'
       const wrap = document.createElement('span')
-      wrap.classList.add('cloze', type === 'cloze' ? 'cloze-active' : 'cloze-inactive')
+      wrap.classList.add('cloze', kind === 'cloze' ? 'cloze-active' : 'cloze-inactive')
       cloze.replaceWith(wrap)
       const hint = wrap.appendChild(document.createElement('span'))
       hint.classList.add('cloze-hint')
       hint.innerText = cloze.dataset.hint || ''
-      cloze.classList.replace(type, 'cloze-content')
+      cloze.classList.replace(kind, 'cloze-content')
       wrap.appendChild(cloze)
-      if (front) wrap.classList.add('hide')
+      // hide inactive on front and show on back unless overridden by shebang
+      if (
+        (kind === 'cloze' && front) ||
+        (kind === 'cloze-inactive' && (front && hide_front || !front && hide_back))
+      )
+        wrap.classList.add('hide')
       // capture first active cloze
-      if (type === 'cloze') this.current ||= wrap
+      if (kind === 'cloze') this.current ||= wrap
 
     }
 
