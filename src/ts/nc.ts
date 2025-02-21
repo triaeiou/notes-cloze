@@ -1,4 +1,7 @@
-import { transferableAbortController } from 'util'
+/**
+ * IMPROVEMENTS
+ * - If we consider re-adding different initial display types: add shebang syntax to set individual note options? Or use flags? Or use separate instances of note type?
+ */
 import {logger} from './logger'
 import type { Logger } from './logger'
 import {Searcher} from './searcher'
@@ -13,6 +16,7 @@ export class NotesCloze {
   search: Searcher
   content: HTMLDivElement
   viewport: HTMLDivElement
+  observer?: MutationObserver
 
   constructor(config: Configuration, front: boolean) {
     this.config = config
@@ -87,28 +91,74 @@ export class NotesCloze {
 
     }
 
-    // track scrolling on front, on unload would be more efficient
-    if (this.front) this.content.onscroll = (_evt) =>
-        sessionStorage.setItem('nc_scroll_top', this.content.scrollTop.toString())
-
     // listeners
     document.addEventListener("click",  this.mouse.bind(this)) // bind so this refers to NotesCloze instance not clicked element
     document.addEventListener("keydown", this.keyboard.bind(this)) // bind so this refers to NotesCloze instance not clicked element
 
-    // reveal finished content, remove placeholder and scroll to first active cloze
-    document.getElementById('nc-placeholder')!.remove()
+    // reveal finished content and scroll to first active cloze
     parent.appendChild(this.viewport)
     this.search = new Searcher(this.viewport, 'nc-', this.log)
     this.viewport.appendChild(this.search.element)
     this.viewport.style.display = 'flex'
 
-    // special case: restore scroll position on back from saved front pos
+    // on front: scroll to context and set up storing of scroll position on destroy
+    // on back: restore previous scroll position and then scroll into view
     if (front) {
+      this.viewport.onscroll = () => {
+        const center = this.viewport.scrollTop + this.viewport.clientHeight / 2
+        let ix = 0
+        let offset = title.clientHeight
+        for (const [i, el] of Array.from(this.content.querySelectorAll('.cloze-active') as NodeListOf<HTMLSpanElement>).entries()) {
+          console.log(`checking ${i} with center: ${center}, el.offsetTop: ${el.offsetTop}`)
+          const top = el.getBoundingClientRect().top
+          if (top >= title.clientHeight) {
+            ix = i
+            offset = top
+            break
+          }
+        }
+    
+        console.log(`storing ${ix} with offset ${offset}`)
+        sessionStorage.setItem('nc_reference_ordinal', ix.toString())
+        sessionStorage.setItem('nc_reference_offset', offset.toString())
+      }
+
+      // initial scroll
       window.requestAnimationFrame(() => this.scroll_to('context', this.current!))
+
     } else {
-      const scroll_top = parseFloat(sessionStorage.getItem('nc_scroll_top')!)
-      if (!isNaN(scroll_top)) sessionStorage.removeItem('nc_scroll_top')
-        window.requestAnimationFrame(() => this.scroll_to('position', scroll_top))
+      const ord = parseInt(sessionStorage.getItem('nc_reference_ordinal')!)
+      const offset = parseFloat(sessionStorage.getItem('nc_reference_offset')!)
+      const actives = this.content.querySelectorAll('.cloze-active') as NodeListOf<HTMLSpanElement>
+      const ref = actives[ord]!
+      let pos = ref.offsetTop
+      let el = ref.parentElement!
+      while (el !== this.content) {
+        pos += el.offsetTop
+        el = el.parentElement!
+      }
+      // render then scroll to previous position
+      window.requestAnimationFrame(() => {
+        console.log(`scrolling to ${pos - offset} from position ${pos} and offset ${offset}`)
+        this.scroll_to('position', pos - offset)
+        // render then scroll into view
+        window.requestAnimationFrame(() => {
+          const first = actives[0].getBoundingClientRect()
+          const last = actives[actives.length - 1].getBoundingClientRect()
+          if (first.top >= 0 && last.bottom <= this.viewport.clientHeight) {
+            console.log(`all visible, first.top: ${first.top}, last.bottom: ${last.bottom}, viewport: ${this.viewport.clientHeight}`)
+            return
+          }
+          else if (first.top < 0 || (first.top - last.bottom) > this.viewport.clientHeight){
+            console.log(`scrolling to first: ${first.top}, last: ${last.bottom}, viewport: ${this.viewport.clientHeight}`)
+            this.scroll_to('min', actives[0])
+          }
+          else {
+            console.log(`scrolling to last: ${first.top}, last: ${last.bottom}, viewport: ${this.viewport.clientHeight}`)
+            this.scroll_to('min', actives[actives.length - 1])
+          }
+        })
+      }) 
     }
   }
 
@@ -247,10 +297,10 @@ export class NotesCloze {
 
       // convert to parent coordinates
       top += this.viewport.scrollTop
-      bottom += this.viewport.scrollTop
+      bottom += this.viewport.scrollTop + lineh // add lineh padding to bottom
 
       if (bottom - top > this.viewport.clientHeight - title_offset) { // will not fit, scroll to top
-        this.viewport.scrollTop = top - title_offset - 10
+        this.viewport.scrollTop = top - title_offset
       } else { // will fit, scroll as little as possible
         if (top < this.viewport.scrollTop + title_offset)
           this.viewport.scrollTop = top - title_offset

@@ -25,6 +25,11 @@
     --nc-search-match: #78c2ff40;
 }
 
+.card {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 16px;
+}
+
 /* Light mode */
 .card:not(.night_mode) {
     background-color: var(--nc-bg1);
@@ -46,6 +51,46 @@
     background-color: transparent;
     border: none;
     border-bottom: 1px solid var(--nc-border);
+}
+#nc-viewport {
+    background-color: var(--nc-bg1);
+}
+#nc-title {
+    padding: 5px 10px;
+    text-transform: uppercase; font-weight: bold;
+    background-color: var(--nc-bg2);
+}
+#nc-content {
+    padding: 10px;
+}
+body:not(.night_mode) #nc-title {border-bottom: solid var(--nc-border) 2px;}
+.cloze {
+    display: block;
+    min-width: 100px; min-height: 1em;
+    margin: 3px; padding: 5px;
+    vertical-align: middle;
+    background-color: var(--nc-bg2);
+    border: 1px solid var(--nc-border);
+}
+.cloze-active { border: 2px solid var(--nc-border-focus); }
+.cloze-active.hide:not(:has(.cloze-active:not(.hide))) { display: inline-block; }
+.cloze-inactive.hide:not(:has(.cloze-active)) { display: inline-block; }
+
+#nc-search {
+        padding: 2px;
+        background-color: var(--nc-bg2);
+        border-top: 1px solid var(--nc-border);
+}
+#nc-search .button {
+    border: 1px solid var(--nc-border); border-radius: 5px;
+    background-color: var(--nc-button-bg);
+}
+#nc-search .button:active {background-color: var(--nc-button-active);}
+.nc-search-matches {
+    background-color: var(--nc-search-matches);
+}
+.nc-search-match {
+    background-color: var(--nc-search-match);
 }
 
 /* Highlight other text runs */
@@ -88,7 +133,3 @@ h5 { font-style: italic; }
 /* Definition lists formating */
 dt { font-weight: bold; }
 dd { margin-bottom: 1em; }
-
-/* legend formating */
-.nc-symbol {color: #d4d4d4; font-weight: bold;}
-.nc-flag {color: #020202; font-weight: bold;}
