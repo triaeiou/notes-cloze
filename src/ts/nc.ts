@@ -6,7 +6,7 @@ import {logger} from './logger'
 import type { Logger } from './logger'
 import {Searcher} from './searcher'
 import type { Configuration } from './types'
-import { ancestor } from './utils'
+import { ancestor, shortcut_matches } from './utils'
 
 export class NotesCloze {
   config: Configuration
@@ -119,7 +119,6 @@ export class NotesCloze {
         let ix = 0
         let offset = title.clientHeight
         for (const [i, el] of Array.from(this.content.querySelectorAll('.cloze-active') as NodeListOf<HTMLSpanElement>).entries()) {
-          //console.log(`checking ${i} with center: ${center}, el.offsetTop: ${el.offsetTop}`)
           const top = el.getBoundingClientRect().top
           if (top >= title.clientHeight) {
             ix = i
@@ -128,13 +127,12 @@ export class NotesCloze {
           }
         }
     
-        //console.log(`storing ${ix} with offset ${offset}`)
         sessionStorage.setItem('nc_reference_ordinal', ix.toString())
         sessionStorage.setItem('nc_reference_offset', offset.toString())
       }
 
       // initial scroll
-      window.requestAnimationFrame(() => this.scroll_to('context', this.current!))
+      window.requestAnimationFrame(() => this.scroll_to('context', Array.from(this.content.querySelectorAll('.cloze-active'))))
 
     } else {
       const ord = parseInt(sessionStorage.getItem('nc_reference_ordinal')!)
@@ -149,7 +147,6 @@ export class NotesCloze {
       }
       // render then scroll to previous position
       window.requestAnimationFrame(() => {
-        //console.log(`scrolling to ${pos - offset} from position ${pos} and offset ${offset}`)
         this.scroll_to('position', pos - offset)
         // render then scroll into view
         window.requestAnimationFrame(() => {
@@ -224,9 +221,10 @@ export class NotesCloze {
       if (!current.classList.contains('hide')) break
       next = current
     }
-    next ||= fwd ? clozes[0] : clozes[clozes.length - 1]
+    //next ||= fwd ? clozes[0] : clozes[clozes.length - 1]
+    next ||= current || (fwd ? clozes[0] : clozes[clozes.length - 1])
     if (current === next) this.toggle(next)
-    else if (next === clozes[0]) this.hide(current!)
+    //else if (next === clozes[0]) this.hide(current!)
     else {
       this.show(next)
       this.hide(current!)
@@ -239,14 +237,17 @@ export class NotesCloze {
   /** Calculate line height from style */
   line_height(element: Element): number {
     this.log('    line_height')
+    if (!element) return 20
     let prev = element.previousElementSibling
-    if (!prev) return 0
-    while (prev.lastElementChild) prev = prev.lastElementChild
-    const rects = prev.getClientRects()
-    for (const rect of Array.from(rects).reverse()) {
-      if (rect.height > 0) return rect.height + (element.getClientRects()[0].top - rect.bottom) * 1.5
+    if (prev) {
+      while (prev.lastElementChild) prev = prev.lastElementChild
+      const rects = prev.getClientRects()
+      for (const rect of Array.from(rects).reverse()) {
+        if (rect.height > 0) return rect.height + (element.getClientRects()[0].top - rect.bottom) * 1.5
+      }
     }
-    return 0
+    const cs = getComputedStyle(element)
+    return cs.lineHeight === 'normal' ?  Math.ceil(parseInt(cs.fontSize) * 1.2) : parseInt(cs.lineHeight)
   }
 
 
@@ -261,18 +262,16 @@ export class NotesCloze {
     } else { // context or min
 
       // identify top and bottom of area to visualize
-      let first, last
+      let first
       let top = 0, bottom = 0 // viewport coordinates
       if (target instanceof HTMLSpanElement) {
-        first = last = target
+        first = target
         bottom = target.getBoundingClientRect().bottom
       } else {
         first = target![0]
         for (const t of target as HTMLSpanElement[]) {
           const b = t.getBoundingClientRect().bottom
-          if (b < bottom) continue
-          bottom = b
-          last = t
+          if (b > bottom) bottom = b
         }
       }
 
@@ -280,7 +279,7 @@ export class NotesCloze {
       // find section start if relevant
       if (type === 'context') {
         const walker = document.createTreeWalker(
-          this.content, NodeFilter.SHOW_ELEMENT,
+          this.viewport, NodeFilter.SHOW_ELEMENT,
           {
             acceptNode(nd: HTMLElement) {
               return nd.matches('hr, h1, h2, h3, h4, h5, h6')
@@ -290,7 +289,10 @@ export class NotesCloze {
           }
         )
         walker.currentNode = first
-        section = walker.previousNode() as HTMLElement
+        section = first === this.content.querySelector('.cloze')
+          ? this.content.firstElementChild as HTMLElement
+          : walker.previousNode() as HTMLElement
+
       }
       const lineh = this.line_height(first || 19)
 
@@ -345,23 +347,23 @@ export class NotesCloze {
   /** Handle document level keyboard events */
   keyboard(evt: KeyboardEvent) {
     this.log('keyboard event')
-    if (evt.key === 'Escape' && !this.search.hidden) {
+    if (shortcut_matches(evt, 'escape') && !this.search.hidden) {
       this.search.hidden = true
       evt.stopImmediatePropagation()
     }
-    else if (evt.key === this.config.shortcuts.next) this.iter(true)
-    else if (evt.key === this.config.shortcuts.previous) this.iter(false)
-    else if (evt.key === this.config.shortcuts.toggle_all) this.toggle(false)
-    else if (evt.key === 'f' && evt.ctrlKey && !evt.metaKey) {
+    else if (shortcut_matches(evt, this.config.shortcuts.next)) this.iter(true)
+    else if (shortcut_matches(evt, this.config.shortcuts.previous)) this.iter(false)
+    else if (shortcut_matches(evt, this.config.shortcuts.toggle_all)) this.toggle(false)
+    else if (shortcut_matches(evt, 'ctrl+f')) {
       if (this.search.hidden) this.toggle(true)
       this.search.focus()
-    } else if (evt.key === 'ArrowUp') {
-      this.content.scrollTop -= this.line_height(this.current?.previousElementSibling || this.current!)
-    } else if (evt.key === 'ArrowDown') {
-      this.content.scrollTop += this.line_height(this.current?.nextElementSibling || this.current!)
+    } else if (shortcut_matches(evt, 'arrowup')) {
+      this.viewport.scrollTop -= this.line_height(this.current?.previousElementSibling || this.current!)
+    } else if (shortcut_matches(evt, 'arrowdown')) {
+      this.viewport.scrollTop += this.line_height(this.current?.nextElementSibling || this.current!)
     }
-    else if (evt.key === 'PageUp') this.content.scrollTop -= this.content.clientHeight
-    else if (evt.key === 'PageDown') this.content.scrollTop += this.content.clientHeight
+    else if (shortcut_matches(evt, 'alt+pageup')) this.content.scrollTop -= this.content.clientHeight
+    else if (shortcut_matches(evt, 'alt+pagedown')) this.content.scrollTop += this.content.clientHeight
     else return
 
     // All non-handled events returned above
